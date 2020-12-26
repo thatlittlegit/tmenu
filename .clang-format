@@ -1,0 +1,12 @@
+BasedOnStyle: WebKit
+
+UseTab: Always
+IndentWidth: 8
+
+ColumnLimit: 80
+
+AlwaysBreakAfterReturnType: TopLevelDefinitions
+
+AlignAfterOpenBracket: DontAlign
+BinPackArguments: true
+BinPackParameters: true
