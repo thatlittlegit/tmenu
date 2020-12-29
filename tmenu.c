@@ -24,6 +24,7 @@ static char* buffer = NULL;
 static size_t buffer_len = 0;
 static size_t buffer_current_count = 0;
 static size_t selected_suggestion = 0;
+static char* last_input = NULL;
 static struct termios original_termios;
 
 static const char* progname = "tmenu";
@@ -106,6 +107,13 @@ redraw()
 		rl_clear_visible_line();
 		rl_redisplay();
 		return;
+	}
+
+	if (!last_input || strcmp(last_input, rl_line_buffer) != 0) {
+		selected_suggestion = 0;
+		free(last_input);
+		last_input = malloc(rl_end);
+		strncpy(last_input, rl_line_buffer, rl_end);
 	}
 
 	size_t width = term_width();
