@@ -103,12 +103,6 @@ read_in_options(void)
 static void
 redraw()
 {
-	if (RL_ISSTATE(RL_STATE_DISPATCHING)) {
-		rl_clear_visible_line();
-		rl_redisplay();
-		return;
-	}
-
 	if (!last_input || strcmp(last_input, rl_line_buffer) != 0) {
 		selected_suggestion = 0;
 		free(last_input);
@@ -122,6 +116,11 @@ redraw()
 
 	term_startofline();
 	term_clearrest(width);
+
+	if (RL_ISSTATE(RL_STATE_DISPATCHING)) {
+		term_write(rl_display_prompt, -1);
+		width -= strlen(rl_display_prompt);
+	}
 
 	if (strlen(input) > width) {
 		term_write(input, width - 3);
@@ -143,8 +142,8 @@ redraw()
 
 	int suggestion_sum = 0;
 	int i = 0;
-	for (char* suggestion = buffer;
-	     suggestion_sum < suggestion_width && suggestion != NULL;) {
+	for (char* suggestion = buffer; !RL_ISSTATE(RL_STATE_DISPATCHING)
+	     && suggestion_sum < suggestion_width && suggestion != NULL;) {
 		char* suggestion_next = suggestion + strlen(suggestion) + 1;
 		int suggestion_len = suggestion_next - suggestion;
 		int new_sum = suggestion_sum + suggestion_len;
