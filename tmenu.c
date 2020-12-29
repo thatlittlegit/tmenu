@@ -22,6 +22,7 @@
 static int ttyfd = -1;
 static char* buffer = NULL;
 static size_t buffer_len = 0;
+static size_t selected_suggestion = 0;
 static struct termios original_termios;
 
 static const char* progname = "tmenu";
@@ -35,6 +36,8 @@ static bool setup_termcap(void);
 static void setup_terminal(void);
 static void strins(char* target, char chr, size_t offset);
 static void term_clearrest(unsigned spaces);
+static void term_invert(void);
+static void term_normal(void);
 static void term_right(void);
 static void term_startofline(void);
 static size_t term_width(void);
@@ -104,12 +107,13 @@ redraw()
 	if (input_len > suggestion_start - 2)
 		suggestion_start = input_len + 2;
 
-	int suggestion_width = width - suggestion_start - 1;
+	int suggestion_width = width - suggestion_start - 3;
 
 	for (size_t i = input_len; i < suggestion_start; i++)
 		term_write(" ", 1);
 
 	int suggestion_sum = 0;
+	int i = 0;
 	for (char* suggestion = buffer;
 	     suggestion_sum < suggestion_width && suggestion != NULL;) {
 		char* suggestion_next = suggestion + strlen(suggestion) + 1;
@@ -117,18 +121,25 @@ redraw()
 		int new_sum = suggestion_sum + suggestion_len;
 
 		if (input_len < 1 || strstr(suggestion, input)) {
+			if (i == selected_suggestion)
+				term_invert();
+
 			term_write(" ", 1);
 
-			if (new_sum > suggestion_width - 2) {
+			if (new_sum > suggestion_width - 3) {
 				term_write(
 				    suggestion, new_sum - suggestion_width);
-				term_write(" >", 2);
+				term_write(" ", 1);
+				term_normal();
+				term_write(" >", 1);
 			} else {
 				term_write(suggestion, suggestion_len);
 				term_write(" ", 1);
+				term_normal();
 			}
 
 			suggestion_sum = new_sum + 2;
+			i += 1;
 		}
 
 		if ((suggestion_next - buffer) < (long)buffer_len)
@@ -210,6 +221,18 @@ term_clearrest(unsigned len)
 	for (unsigned i = 0; i < len; i++)
 		spaces[i] = ' ';
 	writeall(ttyfd, spaces, len);
+}
+
+static void
+term_invert(void)
+{
+	term_write(enter_standout_mode, -1);
+}
+
+static void
+term_normal(void)
+{
+	term_write(exit_standout_mode, -1);
 }
 
 static void
