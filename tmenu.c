@@ -88,7 +88,7 @@ read_in_options(void)
 
 		buffer_len += len;
 		buffer = realloc(buffer, buffer_len + 1);
-		strncpy(buffer + buffer_len - len, readingbuf, len);
+		strncpy(buffer + buffer_len - len - 1, readingbuf, len);
 	}
 
 	if (feof(stdin))
