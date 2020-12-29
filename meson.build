@@ -3,6 +3,7 @@ project('tmenu', 'c',
   default_options: ['warning_level=3'])
 
 src = [
+  'input-readline.c',
   'tmenu.c',
 ]
 

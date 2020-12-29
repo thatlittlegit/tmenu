@@ -3,10 +3,10 @@
  * Licensed under the GPL 3.0 only.
  * SPDX-License-Identifier: GPL-3.0-only
  */
+#include "input.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <locale.h>
-#include <readline/readline.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -29,12 +29,13 @@ static struct termios original_termios;
 
 static const char* progname = "tmenu";
 
-static int back_suggestion(int, int);
-static int forward_suggestion(int, int);
+int back_suggestion(int, int);
+int forward_suggestion(int, int);
 static void exiting(void);
 static int main_loop(void);
 static bool read_in_options(void);
 static void redraw();
+static void resize_signal_handler(int signum);
 static void setup_resize_handler(void);
 static bool setup_termcap(void);
 static void setup_terminal(void);
@@ -48,7 +49,7 @@ static size_t term_width(void);
 static bool term_write(const char* msg, int len);
 static ssize_t writeall(int fd, const void* buf, size_t count);
 
-static int
+int
 back_suggestion(int count, int key)
 {
 	if (selected_suggestion > 0)
@@ -57,7 +58,7 @@ back_suggestion(int count, int key)
 	return 0;
 }
 
-static int
+int
 forward_suggestion(int count, int key)
 {
 	if (selected_suggestion < buffer_current_count - 1)
@@ -101,25 +102,27 @@ read_in_options(void)
 /* we can't use redraw(void) because we use it as a signal handler */
 /* and thus it needs to be able to take an int argument */
 static void
-redraw()
+redraw(struct tmenu_input_state state, void* data)
 {
-	if (!last_input || strcmp(last_input, rl_line_buffer) != 0) {
+	(void)data;
+
+	if (!last_input || strcmp(last_input, state.buffer) != 0) {
 		selected_suggestion = 0;
 		free(last_input);
-		last_input = malloc(rl_end);
-		strncpy(last_input, rl_line_buffer, rl_end);
+		last_input = malloc(state.end);
+		strncpy(last_input, state.buffer, state.end);
 	}
 
 	size_t width = term_width();
-	char* input = rl_line_buffer;
-	size_t input_len = rl_end;
+	char* input = state.buffer;
+	size_t input_len = state.end;
 
 	term_startofline();
 	term_clearrest(width);
 
-	if (RL_ISSTATE(RL_STATE_DISPATCHING)) {
-		term_write(rl_display_prompt, -1);
-		width -= strlen(rl_display_prompt);
+	if (state.prompt) {
+		term_write(state.prompt, -1);
+		width -= strlen(state.prompt);
 	}
 
 	if (strlen(input) > width) {
@@ -142,7 +145,7 @@ redraw()
 
 	int suggestion_sum = 0;
 	int i = 0;
-	for (char* suggestion = buffer; !RL_ISSTATE(RL_STATE_DISPATCHING)
+	for (char* suggestion = buffer; !state.prompt
 	     && suggestion_sum < suggestion_width && suggestion != NULL;) {
 		char* suggestion_next = suggestion + strlen(suggestion) + 1;
 		int suggestion_len = suggestion_next - suggestion;
@@ -179,15 +182,22 @@ redraw()
 	buffer_current_count = i;
 
 	term_startofline();
-	for (int i = 0; i < rl_point; i++)
+	for (int i = 0; i < state.point; i++)
 		term_right();
+}
+
+static void
+resize_signal_handler(int signum)
+{
+	(void)signum;
+	tmenu_input_redraw();
 }
 
 static void
 setup_resize_handler(void)
 {
 	struct sigaction action;
-	action.sa_handler = redraw;
+	action.sa_handler = resize_signal_handler;
 	sigaction(SIGWINCH, &action, NULL);
 }
 
@@ -327,8 +337,7 @@ main(int argc, char** argv)
 	 */
 	ttyfd = open("/dev/tty", O_RDWR);
 	FILE* tty = fdopen(ttyfd, "a+");
-	rl_instream = tty;
-	rl_outstream = tty;
+	tmenu_input_initialize(tty, redraw, NULL);
 
 	if (!setup_termcap())
 		return EXIT_FAILURE;
@@ -340,21 +349,7 @@ main(int argc, char** argv)
 	setup_resize_handler();
 	setup_terminal();
 
-	rl_redisplay_function = redraw;
-
-	rl_add_defun("forward-suggestion", forward_suggestion, -1);
-	rl_bind_keyseq_if_unbound_in_map(
-	    "\\M-\\C-f", forward_suggestion, emacs_standard_keymap);
-	rl_bind_keyseq_if_unbound_in_map(
-	    "L", forward_suggestion, vi_movement_keymap);
-
-	rl_add_defun("back-suggestion", back_suggestion, -1);
-	rl_bind_keyseq_if_unbound_in_map(
-	    "\\M-\\C-b", back_suggestion, emacs_standard_keymap);
-	rl_bind_keyseq_if_unbound_in_map(
-	    "H", back_suggestion, vi_movement_keymap);
-
-	char* result = readline("-> ");
+	char* result = tmenu_input_ask();
 	term_startofline();
 	term_clearrest(0);
 	fputs(result, stdout);
