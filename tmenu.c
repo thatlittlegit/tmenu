@@ -22,11 +22,14 @@
 static int ttyfd = -1;
 static char* buffer = NULL;
 static size_t buffer_len = 0;
+static size_t buffer_current_count = 0;
 static size_t selected_suggestion = 0;
 static struct termios original_termios;
 
 static const char* progname = "tmenu";
 
+static int back_suggestion(int, int);
+static int forward_suggestion(int, int);
 static void exiting(void);
 static int main_loop(void);
 static bool read_in_options(void);
@@ -43,6 +46,24 @@ static void term_startofline(void);
 static size_t term_width(void);
 static bool term_write(const char* msg, int len);
 static ssize_t writeall(int fd, const void* buf, size_t count);
+
+static int
+back_suggestion(int count, int key)
+{
+	if (selected_suggestion > 0)
+		selected_suggestion -= (count ? count : 1);
+
+	return 0;
+}
+
+static int
+forward_suggestion(int count, int key)
+{
+	if (selected_suggestion < buffer_current_count - 1)
+		selected_suggestion += (count ? count : 1);
+
+	return 0;
+}
 
 static void
 exiting(void)
@@ -147,6 +168,8 @@ redraw()
 		else
 			break;
 	}
+
+	buffer_current_count = i;
 
 	term_startofline();
 	for (int i = 0; i < rl_point; i++)
@@ -311,6 +334,18 @@ main(int argc, char** argv)
 	setup_terminal();
 
 	rl_redisplay_function = redraw;
+
+	rl_add_defun("forward-suggestion", forward_suggestion, -1);
+	rl_bind_keyseq_if_unbound_in_map(
+	    "\\M-\\C-f", forward_suggestion, emacs_standard_keymap);
+	rl_bind_keyseq_if_unbound_in_map(
+	    "L", forward_suggestion, vi_movement_keymap);
+
+	rl_add_defun("back-suggestion", back_suggestion, -1);
+	rl_bind_keyseq_if_unbound_in_map(
+	    "\\M-\\C-b", back_suggestion, emacs_standard_keymap);
+	rl_bind_keyseq_if_unbound_in_map(
+	    "H", back_suggestion, vi_movement_keymap);
 
 	char* result = readline("-> ");
 	term_startofline();
