@@ -34,7 +34,6 @@ static void setup_resize_handler(void);
 static bool setup_termcap(void);
 static void setup_terminal(void);
 static void strins(char* target, char chr, size_t offset);
-static bool strprefix(char* str, size_t len, char* other, size_t other_len);
 static void term_clearrest(unsigned spaces);
 static void term_right(void);
 static void term_startofline(void);
@@ -53,16 +52,19 @@ read_in_options(void)
 {
 	/* 1024 picked arbitrarily */
 	char readingbuf[1024] = { 0 };
-	char* fgets_ret = NULL;
 
-	while ((fgets_ret = fgets(readingbuf, sizeof(readingbuf), stdin))
-	    != NULL) {
-		buffer_len += strnlen(readingbuf, sizeof(readingbuf));
+	while (fgets(readingbuf, sizeof(readingbuf), stdin) != NULL) {
+		size_t len = strnlen(readingbuf, sizeof(readingbuf));
+
+		if (len == sizeof(readingbuf) - 1)
+			readingbuf[sizeof(readingbuf)] = 0;
+		else /* it must be newline-delimited */
+			readingbuf[len - 1] = 0;
+
+		buffer_len += len;
 		buffer = realloc(buffer, buffer_len + 1);
-		strncat(buffer, readingbuf, buffer_len);
+		strncpy(buffer + buffer_len - len, readingbuf, len);
 	}
-
-	buffer[buffer_len] = 0;
 
 	if (feof(stdin))
 		return true;
@@ -108,27 +110,31 @@ redraw()
 		term_write(" ", 1);
 
 	int suggestion_sum = 0;
-	for (char* suggestion = buffer; suggestion_sum < suggestion_width
-	     && suggestion != NULL && suggestion[1] != 0;) {
-		char* suggestion_next = strchr(suggestion, '\n');
+	for (char* suggestion = buffer;
+	     suggestion_sum < suggestion_width && suggestion != NULL;) {
+		char* suggestion_next = suggestion + strlen(suggestion) + 1;
 		int suggestion_len = suggestion_next - suggestion;
 		int new_sum = suggestion_sum + suggestion_len;
 
-		if (input_len <= 1
-		    || strprefix(
-			suggestion, suggestion_len, input, input_len)) {
-			if (new_sum > suggestion_width) {
+		if (input_len < 1 || strstr(suggestion, input)) {
+			term_write(" ", 1);
+
+			if (new_sum > suggestion_width - 2) {
 				term_write(
 				    suggestion, new_sum - suggestion_width);
 				term_write(" >", 2);
 			} else {
 				term_write(suggestion, suggestion_len);
-				term_write("  ", 2);
+				term_write(" ", 1);
 			}
+
 			suggestion_sum = new_sum + 2;
 		}
 
-		suggestion = suggestion_next + 1;
+		if ((suggestion_next - buffer) < (long)buffer_len)
+			suggestion = suggestion_next;
+		else
+			break;
 	}
 
 	term_startofline();
@@ -157,15 +163,13 @@ setup_termcap(void)
 		if (errret == 0) {
 			fprintf(stderr,
 			    "%s: terminal type %s can't work at present\n",
-			    progname,
-			    term);
+			    progname, term);
 			return false;
 		}
 
 		fprintf(stderr,
 		    "%s: couldn't access the terminal database for %s\n",
-		    progname,
-		    term);
+		    progname, term);
 		return false;
 	}
 
@@ -186,15 +190,6 @@ setup_terminal()
 static void
 strins(char* target, char chr, size_t offset)
 {
-	fprintf(stderr,
-	    "\n%llu '%c' {%d} %p (%s %d)\n",
-	    offset,
-	    chr,
-	    chr,
-	    target,
-	    target,
-	    strlen(target));
-
 	if (offset >= strlen(target)) {
 		target[offset] = chr;
 		target[offset + 1] = 0;
@@ -203,16 +198,6 @@ strins(char* target, char chr, size_t offset)
 	memmove(
 	    target + offset + 1, target + offset, strlen(target) - offset - 1);
 	target[offset] = chr;
-}
-
-static bool
-strprefix(char* str, size_t len, char* other, size_t other_len)
-{
-	for (size_t i = 0; i < len && i < other_len; i++)
-		if (other[i] != str[i])
-			return false;
-
-	return true;
 }
 
 static void
