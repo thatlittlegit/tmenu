@@ -32,14 +32,12 @@ static const char* progname = "tmenu";
 int back_suggestion(int, int);
 int forward_suggestion(int, int);
 static void exiting(void);
-static int main_loop(void);
 static bool read_in_options(void);
 static void redraw();
 static void resize_signal_handler(int signum);
 static void setup_resize_handler(void);
 static bool setup_termcap(void);
 static void setup_terminal(void);
-static void strins(char* target, char chr, size_t offset);
 static void term_clearrest(unsigned spaces);
 static void term_invert(void);
 static void term_normal(void);
@@ -52,6 +50,8 @@ static ssize_t writeall(int fd, const void* buf, size_t count);
 int
 back_suggestion(int count, int key)
 {
+	(void)key;
+
 	if (selected_suggestion > 0)
 		selected_suggestion -= (count ? count : 1);
 
@@ -61,6 +61,8 @@ back_suggestion(int count, int key)
 int
 forward_suggestion(int count, int key)
 {
+	(void)key;
+
 	if (selected_suggestion < buffer_current_count - 1)
 		selected_suggestion += (count ? count : 1);
 
@@ -144,7 +146,7 @@ redraw(struct tmenu_input_state state, void* data)
 		term_write(" ", 1);
 
 	int suggestion_sum = 0;
-	int i = 0;
+	size_t i = 0;
 	for (char* suggestion = buffer; !state.prompt
 	     && suggestion_sum < suggestion_width && suggestion != NULL;) {
 		char* suggestion_next = suggestion + strlen(suggestion) + 1;
@@ -182,7 +184,7 @@ redraw(struct tmenu_input_state state, void* data)
 	buffer_current_count = i;
 
 	term_startofline();
-	for (int i = 0; i < state.point; i++)
+	for (size_t i = 0; i < state.point; i++)
 		term_right();
 }
 
@@ -236,19 +238,6 @@ setup_terminal()
 	tcgetattr(ttyfd, &termios);
 	termios.c_lflag &= ~(ECHO | ICANON);
 	tcsetattr(ttyfd, 0, &termios);
-}
-
-static void
-strins(char* target, char chr, size_t offset)
-{
-	if (offset >= strlen(target)) {
-		target[offset] = chr;
-		target[offset + 1] = 0;
-	}
-
-	memmove(
-	    target + offset + 1, target + offset, strlen(target) - offset - 1);
-	target[offset] = chr;
 }
 
 static void
