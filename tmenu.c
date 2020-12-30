@@ -146,20 +146,15 @@ redraw(struct tmenu_input_state state, void* data)
 			if (i == selected_suggestion)
 				tmenu_term_invert(tty);
 
-			fputc(' ', tty);
-
 			if (new_sum > suggestion_width - 3) {
-				fwrite(suggestion, sizeof(char),
-				    new_sum - suggestion_width, tty);
-				fputc(' ', tty);
-				tmenu_term_normal(tty);
 				fputs(" >", tty);
-			} else {
-				fwrite(suggestion, sizeof(char), suggestion_len,
-				    tty);
-				fputc(' ', tty);
-				tmenu_term_normal(tty);
+				break;
 			}
+
+			fputc(' ', tty);
+			fwrite(suggestion, sizeof(char), suggestion_len, tty);
+			fputc(' ', tty);
+			tmenu_term_normal(tty);
 
 			suggestion_sum = new_sum + 2;
 			i += 1;
