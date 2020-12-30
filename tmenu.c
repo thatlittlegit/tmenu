@@ -94,8 +94,14 @@ redraw(struct tmenu_input_state state, void* data)
 	if (!last_input || strcmp(last_input, state.buffer) != 0) {
 		selected_suggestion = 0;
 		free(last_input);
-		last_input = malloc(state.end);
-		strncpy(last_input, state.buffer, state.end);
+
+		if (state.end == 0) {
+			last_input = NULL;
+		} else {
+			last_input = malloc(state.end + 1);
+			strncpy(last_input, state.buffer, state.end + 1);
+			last_input[state.end] = 0;
+		}
 	}
 
 	size_t width = tmenu_term_width(tty);
