@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-only
  */
 #include "input.h"
+#include "terminal.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <locale.h>
@@ -15,17 +16,14 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <term.h>
-#include <termios.h>
 #include <unistd.h>
 
-static int ttyfd = -1;
+static FILE* tty = NULL;
 static char* buffer = NULL;
 static size_t buffer_len = 0;
 static size_t buffer_current_count = 0;
 static size_t selected_suggestion = 0;
 static char* last_input = NULL;
-static struct termios original_termios;
 
 static const char* progname = "tmenu";
 
@@ -36,16 +34,6 @@ static bool read_in_options(void);
 static void redraw();
 static void resize_signal_handler(int signum);
 static void setup_resize_handler(void);
-static bool setup_termcap(void);
-static void setup_terminal(void);
-static void term_clearrest(unsigned spaces);
-static void term_invert(void);
-static void term_normal(void);
-static void term_right(void);
-static void term_startofline(void);
-static size_t term_width(void);
-static bool term_write(const char* msg, int len);
-static ssize_t writeall(int fd, const void* buf, size_t count);
 
 int
 back_suggestion(int count, int key)
@@ -72,7 +60,7 @@ forward_suggestion(int count, int key)
 static void
 exiting(void)
 {
-	tcsetattr(ttyfd, 0, &original_termios);
+	tmenu_term_deprep(tty);
 }
 
 static bool
@@ -115,25 +103,26 @@ redraw(struct tmenu_input_state state, void* data)
 		strncpy(last_input, state.buffer, state.end);
 	}
 
-	size_t width = term_width();
+	size_t width = tmenu_term_width(tty);
 	char* input = state.buffer;
 	size_t input_len = state.end;
 
-	term_startofline();
-	term_clearrest(width);
+	tmenu_term_startofline(tty);
+	tmenu_term_clearrest(tty, width);
 
 	if (state.prompt) {
-		term_write(state.prompt, -1);
+		fputs(state.prompt, tty);
 		width -= strlen(state.prompt);
 	}
 
 	if (strlen(input) > width) {
-		term_write(input, width - 3);
-		term_write("...", 3);
+		fwrite(input, sizeof(char), width - 3, tty);
+		fputs("...", tty);
+		fflush(tty);
 		return;
 	}
 
-	term_write(input, input_len);
+	fwrite(input, sizeof(char), input_len, tty);
 
 	size_t suggestion_start = 30;
 
@@ -143,7 +132,7 @@ redraw(struct tmenu_input_state state, void* data)
 	int suggestion_width = width - suggestion_start - 3;
 
 	for (size_t i = input_len; i < suggestion_start; i++)
-		term_write(" ", 1);
+		fputc(' ', tty);
 
 	int suggestion_sum = 0;
 	size_t i = 0;
@@ -155,20 +144,21 @@ redraw(struct tmenu_input_state state, void* data)
 
 		if (input_len < 1 || strstr(suggestion, input)) {
 			if (i == selected_suggestion)
-				term_invert();
+				tmenu_term_invert(tty);
 
-			term_write(" ", 1);
+			fputc(' ', tty);
 
 			if (new_sum > suggestion_width - 3) {
-				term_write(
-				    suggestion, new_sum - suggestion_width);
-				term_write(" ", 1);
-				term_normal();
-				term_write(" >", 1);
+				fwrite(suggestion, sizeof(char),
+				    new_sum - suggestion_width, tty);
+				fputc(' ', tty);
+				tmenu_term_normal(tty);
+				fputs(" >", tty);
 			} else {
-				term_write(suggestion, suggestion_len);
-				term_write(" ", 1);
-				term_normal();
+				fwrite(suggestion, sizeof(char), suggestion_len,
+				    tty);
+				fputc(' ', tty);
+				tmenu_term_normal(tty);
 			}
 
 			suggestion_sum = new_sum + 2;
@@ -183,9 +173,11 @@ redraw(struct tmenu_input_state state, void* data)
 
 	buffer_current_count = i;
 
-	term_startofline();
+	tmenu_term_startofline(tty);
 	for (size_t i = 0; i < state.point; i++)
-		term_right();
+		tmenu_term_right(tty);
+
+	fflush(tty);
 }
 
 static void
@@ -203,112 +195,6 @@ setup_resize_handler(void)
 	sigaction(SIGWINCH, &action, NULL);
 }
 
-static bool
-setup_termcap(void)
-{
-	const char* term = getenv("TERM");
-
-	/* term can be null, 'cause then setupterm will get $TERM itself, see
-	 * it's null, and report an error
-	 */
-	int errret;
-	if (setupterm(term, ttyfd, &errret) == -1) {
-		if (errret == 0) {
-			fprintf(stderr,
-			    "%s: terminal type %s can't work at present\n",
-			    progname, term);
-			return false;
-		}
-
-		fprintf(stderr,
-		    "%s: couldn't access the terminal database for %s\n",
-		    progname, term);
-		return false;
-	}
-
-	return true;
-}
-
-static void
-setup_terminal()
-{
-	struct termios termios;
-
-	tcgetattr(ttyfd, &original_termios);
-	tcgetattr(ttyfd, &termios);
-	termios.c_lflag &= ~(ECHO | ICANON);
-	tcsetattr(ttyfd, 0, &termios);
-}
-
-static void
-term_clearrest(unsigned len)
-{
-	if (term_write(clr_eol, -1))
-		return;
-
-	char* spaces = alloca(len);
-	for (unsigned i = 0; i < len; i++)
-		spaces[i] = ' ';
-	writeall(ttyfd, spaces, len);
-}
-
-static void
-term_invert(void)
-{
-	term_write(enter_standout_mode, -1);
-}
-
-static void
-term_normal(void)
-{
-	term_write(exit_standout_mode, -1);
-}
-
-static void
-term_right(void)
-{
-	term_write(cursor_right, -1);
-}
-
-static void
-term_startofline(void)
-{
-	if (!term_write(carriage_return, -1))
-		term_write("\r", 1);
-}
-
-static size_t
-term_width(void)
-{
-	return (size_t)tigetnum("cols");
-}
-
-static bool
-term_write(const char* msg, int len)
-{
-	/* todo: error handling */
-	return writeall(ttyfd, msg, len < 0 ? strlen(msg) : (size_t)len);
-}
-
-static ssize_t
-writeall(int fd, const void* buf, size_t count)
-{
-	ssize_t sum = 0;
-	ssize_t retd;
-
-	if (buf == NULL)
-		return 0;
-
-	while ((count - sum) > 0
-	    && (retd = write(fd, (const char*)(buf) + sum, count - sum)) > 0)
-		sum += retd;
-
-	if (retd < 0)
-		return -1;
-
-	return sum;
-}
-
 int
 main(int argc, char** argv)
 {
@@ -324,23 +210,23 @@ main(int argc, char** argv)
 	 * the user about invalid termcap before they've written their
 	 * essay
 	 */
-	ttyfd = open("/dev/tty", O_RDWR);
-	FILE* tty = fdopen(ttyfd, "a+");
-	tmenu_input_initialize(tty, redraw, NULL);
+	tty = tmenu_term_initialize();
 
-	if (!setup_termcap())
+	if (!tty) /* TODO warn */
 		return EXIT_FAILURE;
+
+	tmenu_input_initialize(tty, redraw, NULL);
 
 	if (!read_in_options())
 		return EXIT_FAILURE;
 
 	atexit(exiting);
 	setup_resize_handler();
-	setup_terminal();
+	tmenu_term_prep(tty);
 
 	char* result = tmenu_input_ask();
-	term_startofline();
-	term_clearrest(0);
+	tmenu_term_startofline(tty);
+	tmenu_term_clearrest(tty, 0);
 	fputs(result, stdout);
 	fputc('\n', stdout);
 	return EXIT_SUCCESS;
