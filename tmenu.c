@@ -190,7 +190,10 @@ main(int argc, char** argv)
 	char* result = tmenu_input_ask();
 	tmenu_term_startofline(tty);
 	tmenu_term_clearrest(tty, 0);
-	fputs(result, stdout);
+
+	if (result)
+		fputs(result, stdout);
+
 	fputc('\n', stdout);
 	return EXIT_SUCCESS;
 }
