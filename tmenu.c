@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-only
  */
 #include "input.h"
+#include "options.h"
 #include "terminal.h"
 #include <locale.h>
 #include <signal.h>
@@ -14,9 +15,8 @@
 #include <string.h>
 
 static FILE* tty = NULL;
-static char* buffer = NULL;
-static size_t buffer_len = 0;
-static size_t buffer_current_count = 0;
+static char** options = NULL;
+static size_t options_current_count = 0;
 static size_t selected_suggestion = 0;
 static char* last_input = NULL;
 
@@ -25,7 +25,6 @@ static const char* progname = "tmenu";
 int back_suggestion(int, int);
 int forward_suggestion(int, int);
 static void exiting(void);
-static bool read_in_options(void);
 static void redraw();
 static void resize_signal_handler(int signum);
 static void setup_resize_handler(void);
@@ -46,7 +45,7 @@ forward_suggestion(int count, int key)
 {
 	(void)key;
 
-	if (selected_suggestion < buffer_current_count - 1)
+	if (selected_suggestion < options_current_count - 1)
 		selected_suggestion += (count ? count : 1);
 
 	return 0;
@@ -56,32 +55,7 @@ static void
 exiting(void)
 {
 	tmenu_term_deprep(tty);
-}
-
-static bool
-read_in_options(void)
-{
-	/* 1024 picked arbitrarily */
-	char readingbuf[1024] = { 0 };
-
-	while (fgets(readingbuf, sizeof(readingbuf), stdin) != NULL) {
-		size_t len = strnlen(readingbuf, sizeof(readingbuf));
-
-		if (len == sizeof(readingbuf) - 1)
-			readingbuf[sizeof(readingbuf)] = 0;
-		else /* it must be newline-delimited */
-			readingbuf[len - 1] = 0;
-
-		buffer_len += len;
-		buffer = realloc(buffer, buffer_len + 1);
-		strncpy(buffer + buffer_len - len - 1, readingbuf, len);
-	}
-
-	if (feof(stdin))
-		return true;
-
-	perror("failed to read options");
-	return false;
+	tmenu_options_free(options);
 }
 
 /* we can't use redraw(void) because we use it as a signal handler */
@@ -136,15 +110,16 @@ redraw(struct tmenu_input_state state, void* data)
 		fputc(' ', tty);
 
 	int suggestion_sum = 0;
-	size_t i = 0;
-	for (char* suggestion = buffer; !state.prompt
-	     && suggestion_sum < suggestion_width && suggestion != NULL;) {
-		char* suggestion_next = suggestion + strlen(suggestion) + 1;
-		int suggestion_len = suggestion_next - suggestion;
+	size_t shown = 0;
+	for (size_t i = 0; !state.prompt && suggestion_sum < suggestion_width
+	     && options[i] != NULL;
+	     i++) {
+		char* suggestion = options[i];
+		int suggestion_len = strlen(suggestion);
 		int new_sum = suggestion_sum + suggestion_len;
 
 		if (input_len < 1 || strstr(suggestion, input)) {
-			if (i == selected_suggestion)
+			if (shown == selected_suggestion)
 				tmenu_term_invert(tty);
 
 			if (new_sum > suggestion_width - 3) {
@@ -158,16 +133,11 @@ redraw(struct tmenu_input_state state, void* data)
 			tmenu_term_normal(tty);
 
 			suggestion_sum = new_sum + 2;
-			i += 1;
+			shown += 1;
 		}
-
-		if ((suggestion_next - buffer) < (long)buffer_len)
-			suggestion = suggestion_next;
-		else
-			break;
 	}
 
-	buffer_current_count = i;
+	options_current_count = shown;
 
 	tmenu_term_startofline(tty);
 	for (size_t i = 0; i < state.point; i++)
@@ -199,9 +169,6 @@ main(int argc, char** argv)
 
 	setlocale(LC_ALL, "");
 
-	buffer = malloc((buffer_len = 1));
-	buffer[0] = 0;
-
 	/* this could be done before the options, but we might as well tell
 	 * the user about invalid termcap before they've written their
 	 * essay
@@ -213,7 +180,7 @@ main(int argc, char** argv)
 
 	tmenu_input_initialize(tty, redraw, NULL);
 
-	if (!read_in_options())
+	if (!(options = tmenu_options_read(stdin)))
 		return EXIT_FAILURE;
 
 	atexit(exiting);

@@ -4,6 +4,7 @@ project('tmenu', 'c',
 
 src = [
   'input-readline.c',
+  'options.c',
   'terminal-nix.c',
   'tmenu.c',
 ]
