@@ -58,6 +58,9 @@ void
 tmenu_term_deprep(FILE* tty)
 {
 	tcsetattr(fileno(tty), 0, &original_termios);
+	fclose(tty);
+	/* FIXME this still leaks? */
+	del_curterm(cur_term);
 }
 
 void
