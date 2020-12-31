@@ -22,7 +22,6 @@ void
 tmenu_input_initialize(
     FILE* stream, tmenu_input_redraw_t redraw_func, void* _data)
 {
-	rl_initialize();
 	rl_instream = stream;
 	rl_outstream = stream;
 	data = _data;
