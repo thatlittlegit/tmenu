@@ -91,7 +91,6 @@ tmenu_options_read(FILE* input)
 
 	perror("failed to read options");
 	free(outbuffer);
-	free(buf);
 	return NULL;
 }
 
