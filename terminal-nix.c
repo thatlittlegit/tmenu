@@ -1,13 +1,16 @@
 /* terminal-nix.c: terminal abstraction for UNIX machines
- * (c) 2020 thatlittlegit
- * Licensed under the GPL 3.0 only.
- * SPDX-License-Identifier: GPL-3.0-only
+ *
+ *   (c) 2020-2021 thatlittlegit
+ *   This file is part of the tmenu project.
+ *   Licensed under the GNU GPL 3.0 only.
+ *   SPDX-License-Identifier: GPL-3.0-only
  */
 #define _POSIX_C_SOURCE
 
 #include "terminal.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/ioctl.h>
 #include <term.h>
 #include <termios.h>
 
@@ -103,6 +106,7 @@ tmenu_term_startofline(FILE* tty)
 size_t
 tmenu_term_width(FILE* tty)
 {
-	(void)tty;
-	return (size_t)tigetnum("cols");
+	struct winsize size;
+	ioctl(fileno(tty), TIOCGWINSZ, &size);
+	return size.ws_col;
 }
