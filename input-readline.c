@@ -4,13 +4,11 @@
  * SPDX-License-Identifier: GPL-3.0-only
  */
 #include "input.h"
+#include "options.h"
 #include <readline/readline.h>
 
 static tmenu_input_redraw_t redraw;
 static void* data;
-
-int back_suggestion(int, int);
-int forward_suggestion(int, int);
 
 char*
 tmenu_input_ask(void)
@@ -29,17 +27,17 @@ tmenu_input_initialize(
 	redraw = redraw_func;
 	rl_redisplay_function = tmenu_input_redraw;
 
-	rl_add_defun("forward-suggestion", forward_suggestion, -1);
+	rl_add_defun("forward-suggestion", tmenu_options_forward, -1);
 	rl_bind_keyseq_if_unbound_in_map(
-	    "\\M-\\C-f", forward_suggestion, emacs_standard_keymap);
+	    "\\M-\\C-f", tmenu_options_forward, emacs_standard_keymap);
 	rl_bind_keyseq_if_unbound_in_map(
-	    "L", forward_suggestion, vi_movement_keymap);
+	    "L", tmenu_options_forward, vi_movement_keymap);
 
-	rl_add_defun("back-suggestion", back_suggestion, -1);
+	rl_add_defun("back-suggestion", tmenu_options_back, -1);
 	rl_bind_keyseq_if_unbound_in_map(
-	    "\\M-\\C-b", back_suggestion, emacs_standard_keymap);
+	    "\\M-\\C-b", tmenu_options_back, emacs_standard_keymap);
 	rl_bind_keyseq_if_unbound_in_map(
-	    "H", back_suggestion, vi_movement_keymap);
+	    "H", tmenu_options_back, vi_movement_keymap);
 
 	rl_set_signals();
 }

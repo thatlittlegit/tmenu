@@ -1,7 +1,9 @@
 /* tmenu.c: dmenu on the terminal
- * (c) 2020 thatlittlegit
- * Licensed under the GPL 3.0 only.
- * SPDX-License-Identifier: GPL-3.0-only
+ *
+ *   (c) 2020-2021 thatlittlegit
+ *   This file is part of the tmenu project.
+ *   Licensed under the GNU GPL 3.0 only.
+ *   SPDX-License-Identifier: GPL-3.0-only
  */
 #include "input.h"
 #include "options.h"
@@ -15,36 +17,10 @@
 
 static FILE* tty = NULL;
 static char** options = NULL;
-static size_t options_current_count = 0;
-static size_t selected_suggestion = 0;
 
 static const char* progname = "tmenu";
 
-int back_suggestion(int, int);
-int forward_suggestion(int, int);
 static void exiting(void);
-
-int
-back_suggestion(int count, int key)
-{
-	(void)key;
-
-	if (selected_suggestion > 0)
-		selected_suggestion -= (count ? count : 1);
-
-	return 0;
-}
-
-int
-forward_suggestion(int count, int key)
-{
-	(void)key;
-
-	if (selected_suggestion < options_current_count - 1)
-		selected_suggestion += (count ? count : 1);
-
-	return 0;
-}
 
 static void
 exiting(void)
@@ -74,10 +50,11 @@ main(int argc, char** argv)
 	data.tty = tty;
 	data.suggestions = NULL;
 	data.last_input = NULL;
-	data.selected_suggestion = &selected_suggestion;
-	data.matching_suggestions = (int*)&options_current_count;
+	data.selected_suggestion = &selected_option;
+	data.matching_suggestions = 0;
 
 	tmenu_input_initialize(tty, tmenu_redraw, &data);
+	tmenu_options_navigation_initialize(&data.matching_suggestions);
 
 	if (!(options = tmenu_options_read(stdin)))
 		return EXIT_FAILURE;

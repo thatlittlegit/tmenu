@@ -26,7 +26,7 @@ tmenu_redraw(struct tmenu_input_state input, void* data)
 	tmenu_suggestions_t* suggestions = redraw->suggestions;
 	char** last_input = &redraw->last_input;
 	size_t* selected = redraw->selected_suggestion;
-	int* matching_suggestions = redraw->matching_suggestions;
+	int* matching_suggestions = &redraw->matching_suggestions;
 
 	char* buffer = input.buffer;
 	size_t end = input.end;

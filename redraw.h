@@ -18,7 +18,7 @@ struct tmenu_redraw_state {
 	tmenu_suggestions_t* suggestions;
 	char* last_input;
 	size_t* selected_suggestion;
-	int* matching_suggestions;
+	int matching_suggestions;
 };
 
 void tmenu_redraw(struct tmenu_input_state state, void* data);

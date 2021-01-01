@@ -1,7 +1,8 @@
 /* options.c: reads in options to an array
- * (c) 2020 thatlittlegit
- * Licensed under the GPL 3.0 only.
- * SPDX-License-Identifier: GPL-3.0-only
+ *
+ *   (c) 2020-2021 thatlittlegit
+ *   Licensed under the GNU GPL 3.0 only.
+ *   SPDX-License-Identifier: GPL-3.0-only
  */
 #include "options.h"
 #include <stdbool.h>
@@ -13,6 +14,37 @@
 #ifndef OPTION_LEN_UNIT
 #define OPTION_LEN_UNIT 8
 #endif
+
+size_t selected_option;
+int* options_current_count;
+
+int
+tmenu_options_back(int count, int key)
+{
+	(void)key;
+
+	if (selected_option > 0)
+		selected_option -= (count ? count : 1);
+
+	return 0;
+}
+
+int
+tmenu_options_forward(int count, int key)
+{
+	(void)key;
+
+	if ((int)selected_option < *options_current_count - 1)
+		selected_option += (count ? count : 1);
+
+	return 0;
+}
+
+void
+tmenu_options_navigation_initialize(int* occ)
+{
+	options_current_count = occ;
+}
 
 char**
 tmenu_options_read(FILE* input)

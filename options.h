@@ -1,11 +1,18 @@
-/* options.h: simple header file for options.c
- * (c) 2020 thatlittlegit
- * Licensed under the GPL 3.0 only.
- * SPDX-License-Identifier: GPL-3.0-only
+/* options.h: options-related header file
+ *
+ *   (c) 2020-2021 thatlittlegit
+ *   Licensed under the GNU GPL 3.0 only.
+ *   SPDX-License-Identifier: GPL-3.0-only
  */
 #pragma once
+#include <stddef.h>
 #include <stdio.h>
 
-/* wow very complex */
+extern size_t selected_option;
+void tmenu_options_navigation_initialize(int* occ);
+/* generic because needs to be usable by any backend */
+int tmenu_options_back();
+int tmenu_options_forward();
+
 char** tmenu_options_read(FILE* input);
 void tmenu_options_free(char**);
