@@ -8,7 +8,6 @@
 #include "redraw.h"
 #include "terminal.h"
 #include <locale.h>
-#include <signal.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -25,8 +24,6 @@ static const char* progname = "tmenu";
 int back_suggestion(int, int);
 int forward_suggestion(int, int);
 static void exiting(void);
-static void resize_signal_handler(int signum);
-static void setup_resize_handler(void);
 
 int
 back_suggestion(int count, int key)
@@ -55,21 +52,6 @@ exiting(void)
 {
 	tmenu_term_deprep(tty);
 	tmenu_options_free(options);
-}
-
-static void
-resize_signal_handler(int signum)
-{
-	(void)signum;
-	tmenu_input_redraw();
-}
-
-static void
-setup_resize_handler(void)
-{
-	struct sigaction action;
-	action.sa_handler = resize_signal_handler;
-	sigaction(SIGWINCH, &action, NULL);
 }
 
 int
@@ -104,7 +86,6 @@ main(int argc, char** argv)
 	data.suggestions = options;
 
 	atexit(exiting);
-	setup_resize_handler();
 	tmenu_term_prep(tty);
 
 	char* result = tmenu_input_ask();

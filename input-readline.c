@@ -40,6 +40,8 @@ tmenu_input_initialize(
 	    "\\M-\\C-b", back_suggestion, emacs_standard_keymap);
 	rl_bind_keyseq_if_unbound_in_map(
 	    "H", back_suggestion, vi_movement_keymap);
+
+	rl_set_signals();
 }
 
 void
