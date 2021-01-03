@@ -8,6 +8,7 @@
 #define _POSIX_C_SOURCE
 
 #include "terminal.h"
+#include <curses.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/ioctl.h>
@@ -15,6 +16,10 @@
 #include <termios.h>
 
 static struct termios original_termios;
+static FILE* current_tty;
+
+static int tmenu_term_putchar(int chr);
+static int tmenu_term_tputs(const char* str, FILE* tty);
 
 FILE*
 tmenu_term_initialize()
@@ -69,7 +74,7 @@ tmenu_term_deprep(FILE* tty)
 void
 tmenu_term_clearrest(FILE* tty, unsigned len)
 {
-	if (fputs(clr_eol, tty))
+	if (tmenu_term_tputs(clr_eol, tty) != ERR)
 		return;
 
 	char* spaces = alloca(len);
@@ -81,25 +86,25 @@ tmenu_term_clearrest(FILE* tty, unsigned len)
 void
 tmenu_term_invert(FILE* tty)
 {
-	fputs(enter_standout_mode, tty);
+	tmenu_term_tputs(enter_standout_mode, tty);
 }
 
 void
 tmenu_term_normal(FILE* tty)
 {
-	fputs(exit_standout_mode, tty);
+	tmenu_term_tputs(exit_standout_mode, tty);
 }
 
 void
 tmenu_term_right(FILE* tty)
 {
-	fputs(cursor_right, tty);
+	tmenu_term_tputs(cursor_right, tty);
 }
 
 void
 tmenu_term_startofline(FILE* tty)
 {
-	if (!fputs(carriage_return, tty))
+	if (tmenu_term_tputs(carriage_return, tty) == ERR)
 		fputc('\r', tty);
 }
 
@@ -109,4 +114,19 @@ tmenu_term_width(FILE* tty)
 	struct winsize size;
 	ioctl(fileno(tty), TIOCGWINSZ, &size);
 	return size.ws_col;
+}
+
+static int
+tmenu_term_tputs(const char* str, FILE* tty)
+{
+	current_tty = tty;
+	int ret = tputs(str, 1, tmenu_term_putchar);
+	current_tty = NULL;
+	return ret;
+}
+
+static int
+tmenu_term_putchar(int chr)
+{
+	return fputc(chr, current_tty);
 }
