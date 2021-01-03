@@ -1,0 +1,29 @@
+.TH tmenu 1 2020-01-03 tmenu "tmenu User's Manual"
+.SH NAME
+tmenu \- dynamic menu for the terminal
+\"
+.SH SYNOPSIS
+.BR "tmenu " [ "-btT" ]
+\"
+.SH DESCRIPTION
+.B tmenu
+is a dynamic menu for the terminal, that reads newline-separated suggestions
+from stdin. The user can select a choice from the menu, which will be output
+to stdout; only choices similar to their current input will be displayed.
+
+.B tmenu
+aims to be as compatible as possible with
+.BR dmenu (1).
+There are, however, some differences:
+
+.IP \(bu
+Options relating to X11 or other graphical support are ignored (e.g. monitor,
+font, colour, windowid)
+.IP \(bu
+Some keyboard commands are different due to the terminal not being the
+same as X11, or other issues with e.g. readline
+\"
+\" TODO usage
+\"
+.SH SEE ALSO
+.BR dmenu (1)

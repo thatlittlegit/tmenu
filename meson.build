@@ -19,3 +19,5 @@ deps = [
 executable('tmenu', src,
   dependencies: deps,
   install: true)
+
+install_man('tmenu.1')
