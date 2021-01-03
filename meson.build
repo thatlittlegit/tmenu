@@ -3,6 +3,7 @@ project('tmenu', 'c',
   default_options: ['warning_level=3'])
 
 src = [
+  'arguments-getopt.c',
   'input-readline.c',
   'options.c',
   'redraw.c',

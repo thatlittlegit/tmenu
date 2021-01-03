@@ -51,7 +51,7 @@ tmenu_term_initialize()
 }
 
 void
-tmenu_term_prep(FILE* tty)
+tmenu_term_prep(FILE* tty, enum tmenu_location location)
 {
 	int ttyfd = fileno(tty);
 	struct termios termios;
@@ -60,11 +60,21 @@ tmenu_term_prep(FILE* tty)
 	tcgetattr(ttyfd, &termios);
 	termios.c_lflag &= ~(ECHO | ICANON);
 	tcsetattr(ttyfd, 0, &termios);
+
+	tmenu_term_position_save(tty);
+
+	if (location == TMENU_LOCATION_TOP)
+		tmenu_term_position_goto(tty, 0, 0);
+
+	if (location == TMENU_LOCATION_BOTTOM)
+		tmenu_term_position_goto(tty, 0, tmenu_term_height(tty));
 }
 
 void
 tmenu_term_deprep(FILE* tty)
 {
+	tmenu_term_position_restore(tty);
+
 	tcsetattr(fileno(tty), 0, &original_termios);
 	fclose(tty);
 	/* FIXME this still leaks? */
@@ -81,6 +91,27 @@ tmenu_term_clearrest(FILE* tty, unsigned len)
 	for (unsigned i = 0; i < len; i++)
 		spaces[i] = ' ';
 	fwrite(spaces, sizeof(char), len, tty);
+}
+
+void
+tmenu_term_dimensions(FILE* tty, int* x, int* y)
+{
+	struct winsize size;
+	ioctl(fileno(tty), TIOCGWINSZ, &size);
+
+	if (x)
+		*x = size.ws_col;
+
+	if (y)
+		*y = size.ws_row;
+}
+
+size_t
+tmenu_term_height(FILE* tty)
+{
+	int y;
+	tmenu_term_dimensions(tty, NULL, &y);
+	return (size_t)y;
 }
 
 void
@@ -102,6 +133,26 @@ tmenu_term_right(FILE* tty)
 }
 
 void
+tmenu_term_position_goto(FILE* tty, int x, int y)
+{
+	char* parm = tparm(cursor_address, y, x);
+	tmenu_term_tputs(parm, tty);
+	free(parm);
+}
+
+void
+tmenu_term_position_save(FILE* tty)
+{
+	tmenu_term_tputs(save_cursor, tty);
+}
+
+void
+tmenu_term_position_restore(FILE* tty)
+{
+	tmenu_term_tputs(restore_cursor, tty);
+}
+
+void
 tmenu_term_startofline(FILE* tty)
 {
 	if (tmenu_term_tputs(carriage_return, tty) == ERR)
@@ -111,9 +162,9 @@ tmenu_term_startofline(FILE* tty)
 size_t
 tmenu_term_width(FILE* tty)
 {
-	struct winsize size;
-	ioctl(fileno(tty), TIOCGWINSZ, &size);
-	return size.ws_col;
+	int x;
+	tmenu_term_dimensions(tty, &x, NULL);
+	return (size_t)x;
 }
 
 static int

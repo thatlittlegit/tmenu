@@ -5,6 +5,7 @@
  *   Licensed under the GNU GPL 3.0 only.
  *   SPDX-License-Identifier: GPL-3.0-only
  */
+#include "arguments.h"
 #include "input.h"
 #include "options.h"
 #include "redraw.h"
@@ -17,8 +18,6 @@
 
 static FILE* tty = NULL;
 static char** options = NULL;
-
-static const char* progname = "tmenu";
 
 static void exiting(void);
 
@@ -36,6 +35,8 @@ main(int argc, char** argv)
 		progname = argv[0];
 
 	setlocale(LC_ALL, "");
+
+	struct tmenu_arguments* args = tmenu_arguments_parse(argc, argv);
 
 	/* this could be done before the options, but we might as well tell
 	 * the user about invalid termcap before they've written their
@@ -62,7 +63,9 @@ main(int argc, char** argv)
 	data.suggestions = options;
 
 	atexit(exiting);
-	tmenu_term_prep(tty);
+	tmenu_term_prep(tty, args->location);
+
+	free(args);
 
 	char* result = tmenu_input_ask();
 	tmenu_term_startofline(tty);
