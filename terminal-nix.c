@@ -33,7 +33,7 @@ tmenu_term_initialize()
 	 * it's null, and report an error
 	 */
 	int errret;
-	if (setupterm(term, ttyfd, &errret) == -1) {
+	if (setupterm(term, ttyfd, &errret) == ERR) {
 		fclose(tty);
 
 		if (errret == 0) {
