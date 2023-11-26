@@ -1,6 +1,6 @@
 /* arguments-getopt.c: arguments-parsing with getopt
  *
- *   (c) 2021 thatlittlegit
+ *   (c) 2021, 2023 Duncan McIntosh
  *   This file is part of the tmenu project.
  *   Licensed under the GNU GPL 3.0 only.
  *   SPDX-License-Identifier: GPL-3.0-only
@@ -13,10 +13,9 @@
 char* progname = "tmenu";
 const char* const TMENU_USAGE_TEXT = _TMENU_USAGE_TEXT;
 
-struct tmenu_arguments*
-tmenu_arguments_parse(int argc, char** argv)
+int
+tmenu_arguments_parse(int argc, char** argv, struct tmenu_arguments* args)
 {
-	struct tmenu_arguments* args = malloc(sizeof(struct tmenu_arguments));
 	args->location = TMENU_LOCATION_DEFAULT;
 
 	int val;
@@ -33,10 +32,9 @@ tmenu_arguments_parse(int argc, char** argv)
 	}
 
 	if (optind != argc) {
-		fputs(TMENU_USAGE_TEXT, stderr);
-		free(args);
-		return NULL;
+		fprintf(stderr, TMENU_USAGE_TEXT, progname);
+		return -1;
 	}
 
-	return args;
+	return 0;
 }

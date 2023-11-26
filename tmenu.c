@@ -1,6 +1,6 @@
 /* tmenu.c: dmenu on the terminal
  *
- *   (c) 2020-2021 thatlittlegit
+ *   (c) 2020-2021, 2023 Duncan McIntosh
  *   This file is part of the tmenu project.
  *   Licensed under the GNU GPL 3.0 only.
  *   SPDX-License-Identifier: GPL-3.0-only
@@ -36,7 +36,9 @@ main(int argc, char** argv)
 
 	setlocale(LC_ALL, "");
 
-	struct tmenu_arguments* args = tmenu_arguments_parse(argc, argv);
+	struct tmenu_arguments args;
+	if (tmenu_arguments_parse(argc, argv, &args) < 0)
+		return EXIT_FAILURE;
 
 	/* this could be done before the options, but we might as well tell
 	 * the user about invalid termcap before they've written their
@@ -63,9 +65,7 @@ main(int argc, char** argv)
 	data.suggestions = options;
 
 	atexit(exiting);
-	tmenu_term_prep(tty, args->location);
-
-	free(args);
+	tmenu_term_prep(tty, args.location);
 
 	char* result = tmenu_input_ask();
 	tmenu_term_startofline(tty);
