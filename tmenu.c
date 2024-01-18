@@ -1,6 +1,6 @@
 /* tmenu.c: dmenu on the terminal
  *
- *   (c) 2020-2021, 2023 Duncan McIntosh
+ *   (c) 2020-2021, 2023-2024 Duncan McIntosh
  *   This file is part of the tmenu project.
  *   Licensed under the GNU GPL 3.0 only.
  *   SPDX-License-Identifier: GPL-3.0-only
@@ -17,7 +17,7 @@
 #include <stdlib.h>
 
 static FILE* tty = NULL;
-static char** options = NULL;
+char** options = NULL;
 
 static void exiting(void);
 
