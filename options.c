@@ -21,10 +21,14 @@ int* options_current_count;
 int
 tmenu_options_back(int count, int key)
 {
+	int new_value = ((int)selected_option) - (count ? count : 1);
 	(void)key;
 
-	if (selected_option > 0)
-		selected_option -= (count ? count : 1);
+	if (new_value >= 0)
+		selected_option = new_value;
+	else
+		selected_option
+		    = *options_current_count - (count > 0 ? count : 1);
 
 	return 0;
 }
@@ -32,10 +36,13 @@ tmenu_options_back(int count, int key)
 int
 tmenu_options_forward(int count, int key)
 {
+	int new_value = ((int)selected_option) + (count ? count : 1);
 	(void)key;
 
-	if ((int)selected_option < *options_current_count - 1)
-		selected_option += (count ? count : 1);
+	if (new_value < *options_current_count)
+		selected_option = new_value;
+	else
+		selected_option = count > 0 ? (count - 1) : 0;
 
 	return 0;
 }
