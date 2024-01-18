@@ -137,7 +137,6 @@ tmenu_term_position_goto(FILE* tty, int x, int y)
 {
 	char* parm = tparm(cursor_address, y, x);
 	tmenu_term_tputs(parm, tty);
-	free(parm);
 }
 
 void
