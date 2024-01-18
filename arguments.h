@@ -22,4 +22,4 @@ struct tmenu_arguments {
 #define _TMENU_USAGE_TEXT "usage: %s [-tbT]\n"
 extern const char* const TMENU_USAGE_TEXT;
 
-int tmenu_arguments_parse(int argc, char** argv, struct tmenu_arguments *args);
+int tmenu_arguments_parse(int argc, char** argv, struct tmenu_arguments* args);
